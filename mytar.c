@@ -51,30 +51,7 @@ int isError(int argc, char *argv[])
 	return 0;
 }
 
-void listdir(const char *name, int indent)
-{
-    DIR *dir;
-    struct dirent *entry;
-
-    if (!(dir = opendir(name)))
-        return;
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_DIR) {
-            char path[1024];
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-                continue;
-            snprintf(path, sizeof(path), "%s/%s", name, entry->d_name);
-            printf("%*s[%s]\n", indent, "", entry->d_name);
-            listdir(path, indent + 2);
-        } else {
-            printf("%*s- %s\n", indent, "", entry->d_name);
-        }
-    }
-    closedir(dir);
-}
-
-/*Helper*/
+/**************************Helper******************************/
 void addBlock(int fd)
 {
 	char buffer[BLOCK];
@@ -109,9 +86,40 @@ uint64_t octToDec(char *oct) {
 	}
 	return res;
 }
-/*end Helper*/
 
-/*Header*/
+/*get path of file or directory*/
+char *getPath(int argc, char *argv[], char *name, char path[])
+{
+	int i;
+	int pathLen;
+	int nameLen;
+
+	/*if no destination was given, don't add path to name*/
+	if(argc <= 3)
+		return name;
+
+	/*else add path to beginning of name*/
+	pathLen = strlen(argv[3]);
+	nameLen = strlen(name);
+
+	for (i = 0; i < pathLen; i++) {
+		path[i] = argv[3][i];
+	}
+
+	/*make sure the path ends in '/'*/
+	if (path[i - 1] != '/')
+		path[i] = '/';
+
+	for (i = 0; i < nameLen; i++) { 
+		path[i + pathLen] = name[i];
+	}
+	path[i + pathLen + 1] = '\0';
+
+	return path;
+}
+/**************************end Helper************************/
+
+/****************************Header**************************/
 
 /*testing function*/
 void displayHeader(struct THeader *header)
@@ -137,8 +145,6 @@ void displayHeader(struct THeader *header)
 	printf("devminor: 	%s\n", header->devminor);*/
 	printf("prefix: 	%s\n", header->prefix);
 }
-/*end Header*/
-
 
 /*Takes curent block and structures it into a header*/
 struct THeader *getHeader(int fd, int curBlock) {
@@ -231,37 +237,9 @@ struct THeader *getHeader(int fd, int curBlock) {
 	return header;
 
 }
+/*******************end Header***********************/
 
-/*get path of file or directory*/
-char *getPath(int argc, char *argv[], char *name, char path[])
-{
-	int i;
-	int pathLen;
-	int nameLen;
-
-	/*if no destination was given, don't add path to name*/
-	if(argc <= 3)
-		return name;
-
-	/*else add path to beginning of name*/
-	pathLen = strlen(argv[3]);
-	nameLen = strlen(name);
-
-	for (i = 0; i < pathLen; i++) {
-		path[i] = argv[3][i];
-	}
-
-	/*make sure the path ends in '/'*/
-	if (path[i - 1] != '/')
-		path[i] = '/';
-
-	for (i = 0; i < nameLen; i++) { 
-		path[i + pathLen] = name[i];
-	}
-	path[i + pathLen + 1] = '\0';
-
-	return path;
-}
+/*****************execute and display******************/
 
 int extractFile(int fd, int curBlock, struct THeader *header, char path[])
 {
@@ -422,6 +400,159 @@ void travTar (int argc, char *argv[], bool verbosity, bool strict, bool isDis)
 	}
 }
 
+/*********************end execute and display********************/
+
+/**********************create***************************/
+
+int putFile(int tarfd, int curBlock, struct stat *sb, char *name)
+{
+	int fd;
+	char buffer[BLOCK];
+	int loop;
+	int remainder;
+	int i;
+	int fSize;
+
+	/*initialize buffer string*/
+	for (i = 0; i < BLOCK; i++) {
+		buffer[i] = ' ';
+	}
+
+	/*write blank header*/
+	lseek(tarfd, BLOCK * curBlock, SEEK_SET);
+	curBlock += 1;
+
+	/*open file TODO: figure out how to handle a -1 error*/
+	fd = open(name, O_RDONLY);
+	if (fd == -1)
+		exit(EXIT_FAILURE); /*TODO*/
+
+	/*copy file into tarfd (keeping track of blocks traversed)*/
+	fSize = sb->st_size;
+	loop = (int) fSize/ BLOCK;
+	remainder = (int) fSize % BLOCK;
+
+	for (i = 0; i < loop; i++) {
+		read(fd, &buffer, BLOCK);
+		write(tarfd, &buffer, BLOCK);
+		curBlock += 1;
+	}
+
+	/*write the non null characters in last block*/
+	read(fd, &buffer, remainder);  
+	write(tarfd, &buffer, remainder);
+	curBlock += 1;
+
+	/*free space*/
+	close(fd);
+
+	return curBlock;
+}
+
+int putDir(int tarfd, int curBlock, char *name)
+{
+	/*char buffer[BLOCK];*/
+	DIR *dir;
+	struct dirent *dp;
+	struct stat sb;
+	char path[103];
+
+	/*initialize buffer string*/
+	/* for (i = 0; i < BLOCK; i++) {
+		buffer[i] = ' ';
+	}*/
+
+	/*open file TODO: figure out how to handle a -1 error*/
+	if (!(dir = opendir(name))) {
+		return curBlock; /*TODO*/
+	}
+
+	/*insert header for directory*/
+	lseek(tarfd, BLOCK * curBlock, SEEK_SET);
+	curBlock += 1;
+
+	while((dp = readdir(dir)) != NULL) {
+		/*ignore current and parent directories*/
+		if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+			continue;
+
+		/*get path and stat*/
+		snprintf(path, sizeof(path), "%s/%s", name, dp->d_name);
+		if(stat(path, &sb) == -1)
+			continue;
+
+		/*make blank header*/
+		lseek(tarfd, BLOCK * curBlock, SEEK_SET);
+		curBlock += 1;
+
+		/*if dir, recurse*/
+		if (S_ISDIR(sb.st_mode)) {
+			putDir(tarfd, curBlock, path);
+		}
+		else if (S_ISREG(sb.st_mode)) {
+			curBlock = putFile(tarfd, curBlock, &sb, path);
+		}
+	}
+	closedir(dir);
+	return curBlock;
+}
+
+
+/*NOTE: this is an incomplete create. It currently will just write the
+files to the tar and make blank space for the header. TODO, make a 
+createHeader function that takes in a file and constructs a buffer
+to write to the file. TODO, rename current getHeader function so it
+is more descernable between getHeader and createHeader because it
+is currently very confusing*/
+
+/*TODO: make sure to include verbosity and strict. They currently 
+aren't in affect right now*/
+void makeTar(int argc, char *argv[], bool verbosity, bool strict)
+{
+
+	int tarfd = open(argv[2], O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	/*char buffer[BLOCK];*/
+	int i;
+	struct stat sb;
+	int curBlock = 0;
+	
+	/*loop through each given file*/
+	for (i = 3; i < argc; i++) {
+
+		/*get status of given file/directory*/
+		if(stat(argv[i], &sb) == -1)
+			break;
+
+		/*if file, print file to tar*/
+		if (S_ISREG(sb.st_mode)){
+			curBlock = putFile(tarfd, curBlock, &sb, argv[i]);
+		}
+
+		/*if directory, print write directory to tar file*/
+		else if (S_ISDIR(sb.st_mode)) {
+			curBlock = putDir(tarfd, curBlock, argv[i]);
+		}
+
+
+	}
+
+	/*Add two empty blocks for end of file*/
+	/*NOTE:: I'm not sure this is how a file is terminated*/
+	/*Pleas double check, it is currently late and I will
+	address this tomorrow*/
+	lseek(tarfd, BLOCK * curBlock, SEEK_SET);
+	addBlock(tarfd);
+	curBlock += 1;
+	lseek(tarfd, BLOCK * curBlock, SEEK_SET);
+	addBlock(tarfd);
+
+	/*free header*/
+	/*free(header);*/
+
+}
+
+/******************************end create**************************/
+
 int main(int argc, char *argv[])
 {
 	int options;
@@ -478,7 +609,7 @@ int main(int argc, char *argv[])
 	/*execute code*/
 	switch(execute) {
 		case CREATE:
-			printf("CREATE\n");
+			makeTar(argc, argv, verbosity, strict);
 			break;
 		case DISPLAY:
 			travTar(argc, argv, verbosity, strict, true);
