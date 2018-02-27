@@ -365,18 +365,21 @@ void travTar (int argc, char *argv[], bool verbosity, bool strict, bool isDis)
 		if(verbosity)
 			fprintf(stdout, "%s\n", path);
 		/*handle each type different*/
+		/*MASOOD!!!!!! You have a header for a directory or a file*/
 		if (isDis) {
 			printf("display mother fuckers\n");
 			switch(type) {
-				case '0':
-					curBlock = extractFile(fd, curBlock, header, path);
+				case '0':  /*If it is a file*/
+					curBlock = displayTar(fd, curBlock, header, path);
 					break;
-				case '5':
+				case '5': /*If it is a directory*/
 					mkdir(path, (int)octToDec(header->mode));
-				default:
+				case '\0': /*if it is a sym link*/
+				default:  /*if it is anything else*/
 					break;
 			}
 		}
+		/*END MASOOD*/
 		else {
 			switch(type) {
 				case '0':
@@ -496,6 +499,18 @@ int putDir(int tarfd, int curBlock, char *name)
 	closedir(dir);
 	return curBlock;
 }
+
+/*FOR MASOOD*/
+/*struct THeader *makeHeader(char *name)
+{*/
+	/*open stat of name*/
+	/*get a stat and get information*/
+	/*check if it is a directory or symlink or file*/
+	/*gets all the information from file*/
+	/*make a DIR and a dirent and a stat*/
+
+	/*return header;
+}*/
 
 
 /*NOTE: this is an incomplete create. It currently will just write the
