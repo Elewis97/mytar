@@ -39,7 +39,7 @@ struct THeader
 	char gname[32];
 	char devmajor[8];
 	char devminor[8];
-	char prefix[155];
+	char prefix[156];
 };
 
  
@@ -89,66 +89,19 @@ uint64_t octToDec(char *oct) {
 	return res;
 }
 
-/*get path of file or directory*/
-char *getPath(int argc, char *argv[], struct THeader *header, char path[])
+void getPath(struct THeader *header, char path[])
 {
-	int i;
-	int pathLen;
-	int nameLen;
-	char name[300];
-
-	/*make sure name is terminated*/
-
-	/*if no destination was given, don't add path to name*/
-	if(argc <= 3 && strlen(header->prefix) == 0) {
+	if (strlen(header->prefix) == 0) {
 		strcpy(path, header->name);
-		/*in case name doesn't null terminate*/
 		path[100] = '\0';
-		return path;
+		return;
 	}
-
-	/*if prefix does exist, append to name*/
-	if (strlen(header->prefix) != 0) {
-		strcpy(name, header->prefix);
-		strcat(name, "/");
-		/*if prefix doesn't terminate*/
-		/*name[155] = '\0';*/
-		strcat(name, header->name);
-		pathLen = strlen(name);
-		name[pathLen] = '\0';
-	}
-	else
-		strcpy(name, header->name);
-
-	if(strlen(header->prefix) != 0 && argc <=3) {
-		strcpy(path, name);
-	}
-
-	/*if still no destination given, return name*/
-	if(argc <= 3) {
-		strcpy(path, name);
-		return path;
-	}
-
-	/*else add path to beginning of name*/
-	pathLen = strlen(argv[3]);
-	nameLen = strlen(name);
-
-	for (i = 0; i < pathLen; i++) {
-		path[i] = argv[3][i];
-	}
-
-	/*make sure the path ends in '/'*/
-	if (path[i - 1] != '/')
-		path[i] = '/';
-
-	for (i = 0; i < nameLen; i++) { 
-		path[i + pathLen] = name[i];
-	}
-	path[i + pathLen + 1] = '\0';
-
-	return path;
+	strcpy(path, header->prefix);
+	strcat(path, "/");
+	strcat(path, header->name);
+	return;	
 }
+
 /**************************end Helper************************/
 
 /****************************Header**************************/
@@ -437,7 +390,7 @@ int displayNamedChildren(int curBlock, char *dirName, int start,
 		lseek(fd, BLOCK * curBlock, SEEK_SET);
 		/*figure out type*/
 		type = header->typeflag;
-		getPath(argc, argv, header, path);
+		getPath(header, path);
 
 		printf("path: %s\n", path);
 
@@ -474,56 +427,20 @@ int displayNamedChildren(int curBlock, char *dirName, int start,
 }
 
 int isNamed(char *path, int argc, char *argv[], bool verbosity,
-	struct THeader *header, char *parent, char *splitPath)
+	struct THeader *header)
 {
 	int i;
-	int start; 
-
-
 	for (i = 3; i < argc; i++) {
-		/*check if end of path contains name*/
-		start = strlen(path) - strlen(argv[i]);
-		if (start >= 0)
-			strcpy(splitPath, path + start - 1);
-		else 
-			strcpy(splitPath, path);
-		/*if (strcmp(argv[i], splitPath) == 0) {*/
-		if (strstr(splitPath, argv[i]) != NULL) {
-			if (!verbosity) 
-				printf("%s\n",argv[i]);
+		if(strstr(path, argv[i]) != NULL) {
+			if(!verbosity)
+				printf("%s\n", path);
 			else
-				displayFile(argv[i], header);
-			if(header->typeflag == '5') {
-				strcpy(parent, path);
-				/*printf("PARENT: %s\n", parent);
-				printf("PATH  : %s\n", path);*/
-			}
-			else {
-				parent[0] = '\0';
-			}
-			return true;
+				displayFile(path, header);
 		}
-		/*if (strlen(parent) != 0 && strstr(path, parent) != NULL) {
-			printf("PARENT: %s\n", parent);
-			printf("CHILD: %s\n", path);
-		}*/
-		/*else if (strstr(path, parent) != NULL) {
-			if (!verbosity)
-				printf("%s\n", argv[i]);
-			else
-				displayFile(argv[i], header);
-		}*/
 	}
-	/*if (strstr(path, parent) != NULL && strlen(parent) > 0) {
-		strcpy(splitPath, )
-		printf("strstr: %d, strlen: %d\n", strstr(path,
-		 parent) != NULL
-			, (int)strlen(parent));
-		printf("FAIL\n");
-	}*/
-	parent[0] = '\0';
 	return false;
 }
+
 
 /*Function used for extract and display.
 Loops through the headers and files of the tar
@@ -539,15 +456,11 @@ void travTar (int argc, char *argv[],
 	int curBlock = 0;
 	char type;
 	bool done = false;
-	char parent[255];
-	char splitPath[225];
-	bool named = true;
+	int hCount = 0;
 
 	/*init string buffers*/
 	for (i = 0; i < 255; i++) {
 		path[i] = '\0';
-		parent[i] = '\0';
-		splitPath[i] = '\0';
 	}
 	for (i = 0; i < BLOCK; i++) {
 		buffer[i] = ' ';
@@ -557,11 +470,12 @@ void travTar (int argc, char *argv[],
 	while(!done) {
 		header = getHeader(fd, curBlock);
 		curBlock += 1;
+		hCount += 1;
 		/*ensure we are past header*/
 		lseek(fd, BLOCK * curBlock, SEEK_SET);
 		/*figure out type*/
 		type = header->typeflag;
-		getPath(argc, argv, header, path);
+		getPath(header, path);
 
 		/*display files if "xv" or "t(v)"*/
 		if((verbosity && !isDis) || (isDis)) {
@@ -570,32 +484,17 @@ void travTar (int argc, char *argv[],
 			else if (isDis && verbosity && (argc <= 3))
 				displayFile(path, header);
 			else if (isDis && (argc > 3))
-				/*strcpy(splitPath, path);*/
-				/*if (strstr(splitPath, parent) != NULL) {
-					printf("%s\n", path);
-				}*/
-				named = isNamed(path, argc, argv, 
-					verbosity, header,
-					 parent, splitPath);
+				isNamed(path, argc, argv, 
+					verbosity, header);
+			else if (!isDis)
+				fprintf(stdout, "%s\n", path);
 
 		}
-
-		/*check if child of named directory*/
-		/*if(isDis && (argc > 3)
-			&& strstr(path, parent) != NULL) {
-			printf("yeah: %s\n", path);*/
-
-			/*strcpy(splitPath, path + start);
-			if (verbosity)
-				displayFile(splitPath, header);
-			else
-				fprintf(stdout, "%s\n", splitPath);*/
-		/*}*/
-
 
 		/*handle each type different*/
 		/*MASOOD!!!!!! You have a header for a directory or a file*/
 		if (isDis) {
+			/*printf("count: %d\n", hCount);*/
 			switch(type) {
 				case '0':  /*If it is a file*/
 					curBlock = skipFile(fd, curBlock, 
@@ -619,7 +518,8 @@ void travTar (int argc, char *argv[],
 						 header, path);
 						break;
 					case '5':
-						/*do nothing*/
+						mkdir(path,
+					 (int)octToDec(header->mode));
 					default:
 						break;
 				}
@@ -803,37 +703,6 @@ void makeTar(int argc, char *argv[], bool verbosity, bool strict)
 
 }
 
-void copyTarFile(char *path, char *tarname)
-{
-	char buffer[BLOCK];
-	int fd;
-	int i;
-	bool done = false;
-	int tarfd;
-
-	/*init string buffers*/
-	for (i = 0; i < BLOCK; i++) {
-		buffer[i] = ' ';
-	}
-
-	/*make path*/
-	strcat(path, tarname);
-
-	fd = open(path, O_WRONLY | O_CREAT, 0644);
-	tarfd = open(tarname, O_RDONLY);
-
-	while(!done) {
-		done = read(tarfd, &buffer, BLOCK);
-		write(fd, &buffer, BLOCK);
-	}
-
-	close(fd);
-	close(tarfd);
-
-
-	
-}
-
 /******************************end create**************************/
 
 int main(int argc, char *argv[])
@@ -845,10 +714,18 @@ int main(int argc, char *argv[])
 	int i;
 	int len;
 
-	printf("__________________________________________\n");
+	char myDir[200];
+
+	for (i = 0; i < 200; i++)
+		myDir[i] = '\0';
+
+	strcpy(myDir, "Elle/");
+
+
+	/*printf("__________________________________________\n");
 	for (i = 0; i < argc; i++)
 		printf("%s ", argv[i]);
-	printf("\n_____________________________________________\n");
+	printf("\n_____________________________________________\n");*/
 
 	/*determine if input is valid...ish*/
 	if (isError(argc, argv)){
@@ -906,6 +783,9 @@ int main(int argc, char *argv[])
 			travTar(argc, argv, verbosity, strict, true);
 			break;
 		case EXTRACT:
+			/*for (i = 0; i < argc; i++)
+				printf("%s ", argv[i]);
+			printf("\n");*/
 			travTar(argc, argv, verbosity, strict, false);
 			break;
 	}
