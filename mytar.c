@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <stdint.h>
+#include <time.h>
 
 #define MAXPATH 256
 #define BLOCK 512
@@ -45,7 +46,8 @@ struct THeader
 int isError(int argc, char *argv[])
 {
 	if (argc < 3){
-		fprintf(stderr, "usage: mytar [ctxvS]f tarfile [ path [ ... ] ]\n");
+		fprintf(stderr, 
+			"usage: mytar [ctxvS]f tarfile [ path [ ... ] ]\n");
 		return 1;
 	}
 	return 0;
@@ -95,8 +97,10 @@ char *getPath(int argc, char *argv[], char *name, char path[])
 	int nameLen;
 
 	/*if no destination was given, don't add path to name*/
-	if(argc <= 3)
+	if(argc <= 3) {
+		strcpy(path, name);
 		return name;
+	}
 
 	/*else add path to beginning of name*/
 	pathLen = strlen(argv[3]);
@@ -129,7 +133,7 @@ void displayHeader(struct THeader *header)
 	for (i = 0; i < 100; i++)
 		printf("%c", header->name[i]);
 	printf("\n");
-	printf("mode:		%s (%d)\n", header->mode, (int) octToDec(header->mode));
+	printf("mode:		%s\n", header->mode);
 	printf("uid:		%s\n", header->uid);
 	printf("gid:		%s\n", header->gid);
 	printf("size:		%s\n", header->size);
@@ -241,7 +245,8 @@ struct THeader *getHeader(int fd, int curBlock) {
 
 /*****************execute and display******************/
 
-int extractFile(int fd, int curBlock, struct THeader *header, char path[])
+int extractFile(int fd, int curBlock, 
+	struct THeader *header, char path[])
 {
 	int outfd;
 	char buffer[BLOCK];
@@ -282,7 +287,7 @@ int extractFile(int fd, int curBlock, struct THeader *header, char path[])
 	return curBlock;
 }
 
-int displayTar(int fd, int curBlock, struct THeader *header, char path[])
+int skipFile(int fd, int curBlock, struct THeader *header, char path[])
 {
 	/*MASOOD. This
 	is literally a copy of the extract file function
@@ -290,51 +295,74 @@ int displayTar(int fd, int curBlock, struct THeader *header, char path[])
 	Change it how you will, but it behaves exactly like extract
 	But you can use this function here to display
 	the function. NOTE that you should only have one print statement 
-	here since this is called in a while loop that goes to each header in the
+	here since this is called in a while loop that goes to
+	 each header in the
 	program so long as you RETURN WHAT YOUR CURENT BLOCK IS*/
-	int outfd;
-	char buffer[BLOCK];
 	int loop;
-	int remainder;
-	int i;
 	int fSize;
-
-	/*initialize buffer string*/
-	for (i = 0; i < BLOCK; i++) {
-		buffer[i] = ' ';
-	}
-
-		/*create new file, exit if failure (MASOOD: or directory, the extract function is only called when
-	it is a file. You cannot call this for display)*/
-	outfd = open(path, O_WRONLY | O_CREAT, (int)octToDec(header->mode));
-	if (outfd == -1)
-		exit(EXIT_FAILURE);
 
 	/*copy file into outfd (keeping track of blocks traversed)*/
 	fSize = (int) octToDec(header->size);
 	loop = (int) fSize/ BLOCK;
-	remainder = (int) fSize % BLOCK;
-	for (i = 0; i < loop; i++) {
-		read(fd, &buffer, BLOCK);
-		write(outfd, &buffer, BLOCK);
-		curBlock += 1;
-	}
-
-	/*write the non null characters in last block*/
-	read(fd, &buffer, remainder);
-	write(outfd, &buffer, remainder);
-	curBlock += 1;
-
-	/*free space*/
-	close(outfd);
+	curBlock += loop + 1;
+	lseek(fd, BLOCK * curBlock, SEEK_SET);
 
 	return curBlock;
+}
+
+void displayFile(char *name, struct THeader *header)
+{
+	struct stat sb;
+	int i;
+	int uLen = strlen(header->uname);
+	int gLen = strlen(header->gname);
+	char owner[50];
+	time_t mtime = (int)octToDec(header->mtime);
+	char mtimeStr[20];
+	struct tm *timeInfo;
+
+	/*format owner name*/
+	for (i = 0; i < uLen; i++)
+		owner[i] = header->uname[i];
+	owner[i] = '/';
+	for (i = 0; i < gLen; i++)
+		owner[i + uLen + 1] = header->gname[i];
+	owner[i + uLen + 1] = '\0';
+
+	/*formating mtime*/
+	timeInfo = localtime(&mtime);
+	strftime(mtimeStr, sizeof(mtimeStr), "%G-%m-%d %H:%M", timeInfo);
+
+	stat(name, &sb);
+
+
+	/*print permissions*/
+    printf((S_ISDIR((int)octToDec(header->mode))) ? "d" : "-");
+    printf(((int)octToDec(header->mode) & S_IRUSR) ? "r" : "-") ;
+    printf(((int)octToDec(header->mode) & S_IWUSR) ? "w" : "-");
+    printf(((int)octToDec(header->mode) & S_IXUSR) ? "x" : "-");
+    printf(((int)octToDec(header->mode) & S_IRGRP) ? "r" : "-");
+    printf(((int)octToDec(header->mode) & S_IWGRP) ? "w" : "-");
+    printf(((int)octToDec(header->mode) & S_IXGRP) ? "x" : "-");
+    printf(((int)octToDec(header->mode) & S_IROTH) ? "r" : "-");
+    printf(((int)octToDec(header->mode) & S_IWOTH) ? "w" : "-");
+    printf(((int)octToDec(header->mode) & S_IXOTH) ? "x" : "-");
+
+    /*printf("uid: %s, gid: %s, uname: %s, gname: %s\n",
+    	header->uid, header->gid, header->uname, header->gname);*/
+    
+    printf(" %17s %8d", owner, (int)octToDec(header->size));
+    printf(" %16s %.100s\n", 
+    	mtimeStr, name);
+
+
 }
 
 /*Function used for extract and display.
 Loops through the headers and files of the tar
 and either extracts or displays them*/
-void travTar (int argc, char *argv[], bool verbosity, bool strict, bool isDis)
+void travTar (int argc, char *argv[], 
+	bool verbosity, bool strict, bool isDis)
 {
 	int fd = open(argv[2], O_RDONLY);
 	struct THeader *header;
@@ -344,6 +372,8 @@ void travTar (int argc, char *argv[], bool verbosity, bool strict, bool isDis)
 	int curBlock = 0;
 	char type;
 	bool done = false;
+	/*char badChars[] = "!@%^*~|";
+	bool validName = true;*/
 
 	/*init string buffers*/
 	for (i = 0; i < 103; i++) {
@@ -362,31 +392,48 @@ void travTar (int argc, char *argv[], bool verbosity, bool strict, bool isDis)
 		/*figure out type*/
 		type = header->typeflag;
 		getPath(argc, argv, header->name, path);
-		if(verbosity)
-			fprintf(stdout, "%s\n", path);
+		/*check if valid filename*/
+		/*for(i = 0; i < strlen(badChars); i++) {
+			if(strchr(path, badChars[i]) != NULL) {
+				validName = false;
+			}
+		}
+		if (!validName) {
+			fprintf(stderr, "Bad Tar file\n");
+			exit(EXIT_FAILURE);
+		}*/
+		/*display files if "xv" or "t"*/
+		if((verbosity && !isDis) || (!verbosity && isDis)) {
+			fprintf(stdout, "%.100s\n", path);
+		}
+		/*display files if "tv"*/
+		if (verbosity && isDis)
+			displayFile(path, header);
 		/*handle each type different*/
 		/*MASOOD!!!!!! You have a header for a directory or a file*/
 		if (isDis) {
-			printf("display mother fuckers\n");
 			switch(type) {
 				case '0':  /*If it is a file*/
-					curBlock = displayTar(fd, curBlock, header, path);
+					curBlock = skipFile(fd, curBlock, 
+						header, path);
 					break;
 				case '5': /*If it is a directory*/
-					mkdir(path, (int)octToDec(header->mode));
+					mkdir(path,
+					 (int)octToDec(header->mode));
 				case '\0': /*if it is a sym link*/
 				default:  /*if it is anything else*/
 					break;
 			}
 		}
 		/*END MASOOD*/
-		else {
+		if(!isDis) {
 			switch(type) {
 				case '0':
-					curBlock = extractFile(fd, curBlock, header, path);
+					curBlock = extractFile(fd, curBlock,
+					 header, path);
 					break;
 				case '5':
-					mkdir(path, (int)octToDec(header->mode));
+					/*do nothing*/
 				default:
 					break;
 			}
@@ -476,7 +523,8 @@ int putDir(int tarfd, int curBlock, char *name)
 
 	while((dp = readdir(dir)) != NULL) {
 		/*ignore current and parent directories*/
-		if (strcmp(dp->d_name, ".") == 0 || strcmp(dp->d_name, "..") == 0)
+		if (strcmp(dp->d_name, ".") == 0 || 
+			strcmp(dp->d_name, "..") == 0)
 			continue;
 
 		/*get path and stat*/
@@ -525,7 +573,8 @@ aren't in affect right now*/
 void makeTar(int argc, char *argv[], bool verbosity, bool strict)
 {
 
-	int tarfd = open(argv[2], O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	int tarfd = open(argv[2], 
+		O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	/*char buffer[BLOCK];*/
 	int i;
 	struct stat sb;
@@ -609,7 +658,8 @@ int main(int argc, char *argv[])
 		}
 		if (execute == ERROR) {
 			printf("a\n");
-			fprintf(stderr, "usage: mytar [ctxvS]f tarfile [ path [ ... ] ]\n");
+			fprintf(stderr, 
+			"usage: mytar [ctxvS]f tarfile [ path [ ... ] ]\n");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -617,7 +667,8 @@ int main(int argc, char *argv[])
 	/*make sure that an execute was given*/
 	if (execute == 0) {
 		printf("b\n");
-		fprintf(stderr, "usage: mytar [ctxvS]f tarfile [ path [ ... ] ]\n");
+		fprintf(stderr,
+		 "usage: mytar [ctxvS]f tarfile [ path [ ... ] ]\n");
 		exit(EXIT_FAILURE);
 	}
 
