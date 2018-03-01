@@ -11,6 +11,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <time.h>
+#include <assert.h>
 
 #define MAXPATH 256
 #define BLOCK 512
@@ -54,6 +55,56 @@ int isError(int argc, char *argv[])
 }
 
 /**************************Helper******************************/
+
+char** str_split(char* a_str, const char a_delim)
+{
+    char** result    = 0;
+    size_t count     = 0;
+    char* tmp        = a_str;
+    char* last_comma = 0;
+    char delim[2];
+    delim[0] = a_delim;
+    delim[1] = 0;
+
+    /* Count how many elements will be extracted. */
+    while (*tmp)
+    {
+        if (a_delim == *tmp)
+        {
+            count++;
+            last_comma = tmp;
+        }
+        tmp++;
+    }
+
+    /* Add space for trailing token. */
+    count += last_comma < (a_str + strlen(a_str) - 1);
+
+    /* Add space for terminating null string so caller
+       knows where the list of returned strings ends. */
+    count++;
+
+    result = malloc(sizeof(char*) * count);
+
+    if (result)
+    {
+        size_t idx  = 0;
+        char* token = strtok(a_str, delim);
+
+        while (token)
+        {
+            assert(idx < count);
+            *(result + idx++) = strdup(token);
+            token = strtok(0, delim);
+        }
+        assert(idx == count - 1);
+        *(result + idx) = 0;
+    }
+
+    return result;
+}
+
+
 void addBlock(int fd)
 {
 	char buffer[BLOCK];
@@ -100,6 +151,49 @@ void getPath(struct THeader *header, char path[])
 	strcat(path, "/");
 	strcat(path, header->name);
 	return;	
+}
+
+
+int myrmdir(char *path) {
+	DIR *dir = opendir(path);
+	int pathlen = strlen(path);
+	int len;
+	int rm1 = -1;
+	int rm2;
+	char *buffer;
+
+	struct dirent *dp;
+	struct stat sb;
+
+
+	if (dir) {
+		rm1 = 0;
+		while((dp = readdir(dir)) && !rm1) {
+			if (!strcmp(dp->d_name, ".") ||
+				!strcmp(dp->d_name, "..")) 
+				continue;
+			len = pathlen + strlen(dp->d_name) + 2;
+			buffer = malloc(len);
+
+			if(buffer) {
+				snprintf(buffer, len, "%s/%s",
+					path, dp->d_name);
+
+				if(!stat(buffer, &sb)) {
+					if(S_ISDIR(sb.st_mode))
+						rm2 = myrmdir(buffer);
+					else
+						rm2 = unlink(buffer);
+				}
+				free(buffer);
+			}
+			rm1 = rm2;
+		}
+		closedir(dir);
+	}
+	if (!rm1) 
+		rm1 = rmdir(path);
+	return rm1;
 }
 
 /**************************end Helper************************/
@@ -240,6 +334,45 @@ struct THeader *getHeader(int fd, int curBlock) {
 /*******************end Header***********************/
 
 /*****************execute and display******************/
+
+void extractPath(char *path, int mode)
+{
+	char **tokens;
+	DIR *dir;
+	int i = 0;
+
+	tokens = str_split(path, '/');
+
+	if(!tokens)
+		return;
+
+	do {
+		strcat(path, *(tokens + i));
+		dir = opendir(path);
+		/*if (!dir)
+			mkdir(path, S_IRUSR | S_IWUSR |
+				S_IXUSR);*/
+		printf("[%s]", *(tokens + i));
+		i++;
+	} while(*(tokens + i + 1));
+
+	printf("file: [%s]\n", *(tokens + i));
+	printf("path: %s\n", path);
+
+	free(tokens);
+
+}
+
+void extractDir(char *path, int mode)
+{
+	DIR *dir = opendir(path);
+
+	if(dir) {
+		closedir(dir);
+		myrmdir(path);
+	}
+	mkdir(path, mode);
+}
 
 int extractFile(int fd, int curBlock, 
 	struct THeader *header, char path[])
@@ -427,15 +560,17 @@ int displayNamedChildren(int curBlock, char *dirName, int start,
 }
 
 int isNamed(char *path, int argc, char *argv[], bool verbosity,
-	struct THeader *header)
+	struct THeader *header, bool isDir)
 {
 	int i;
 	for (i = 3; i < argc; i++) {
 		if(strstr(path, argv[i]) != NULL) {
-			if(!verbosity)
+			if(!verbosity && isDir)
 				printf("%s\n", path);
-			else
+			else if (verbosity && isDir)
 				displayFile(path, header);
+			if (!isDir)
+				return true;
 		}
 	}
 	return false;
@@ -457,6 +592,13 @@ void travTar (int argc, char *argv[],
 	char type;
 	bool done = false;
 	int hCount = 0;
+	bool named = false;
+
+	char tempPath[300];
+
+	for (i = 0; i < 300; i++)
+		tempPath[i] = '\0';
+	i = 0;
 
 	/*init string buffers*/
 	for (i = 0; i < 255; i++) {
@@ -478,16 +620,16 @@ void travTar (int argc, char *argv[],
 		getPath(header, path);
 
 		/*display files if "xv" or "t(v)"*/
-		if((verbosity && !isDis) || (isDis)) {
+		if(/*(verbosity && !isDis ) || */(isDis)) {
 			if (isDis && (argc <= 3) && !verbosity)
 				fprintf(stdout, "%s\n", path);
 			else if (isDis && verbosity && (argc <= 3))
 				displayFile(path, header);
 			else if (isDis && (argc > 3))
 				isNamed(path, argc, argv, 
-					verbosity, header);
-			else if (!isDis)
-				fprintf(stdout, "%s\n", path);
+					verbosity, header, true);
+			/*else if (!isDis)
+				fprintf(stdout, "%s\n", path);*/
 
 		}
 
@@ -509,22 +651,90 @@ void travTar (int argc, char *argv[],
 			}
 		}
 		/*END MASOOD*/
-		if(!isDis) {
-			if (argc <= 3) {
+		if(!isDis && argc <= 3) {
+			if (verbosity)
+				fprintf(stdout, "%s\n", path);
+			switch(type) {
+				case '0':
+					curBlock = 
+					extractFile(fd, curBlock,
+					 header, path);
+					break;
+				case '5':
+					extractDir(path, 
+					(int)octToDec(header->mode));
+					/*mkdir(path,
+				 (int)octToDec(header->mode));*/
+				default:
+					break;
+			}
+		}
+
+		if(!isDis && argc > 3) {
+			named = isNamed(path, argc, argv,
+				verbosity, header, false);
+			if (!named) {
+				switch(type) {
+					case '0':  /*If it is a file*/
+						curBlock = skipFile(fd, 
+							curBlock, 
+							header, path);
+						break;
+					case '5': /*If it is a directory*/
+						/*do nothing*/
+					case '\0': /*if it is a sym link*/
+					default:  /*if it is anything else*/
+						break;
+				}
+			}
+			else {
 				switch(type) {
 					case '0':
+						strcpy(tempPath, path);
+						extractPath(tempPath,
+						(int)octToDec(header->mode));
 						curBlock = 
 						extractFile(fd, curBlock,
 						 header, path);
 						break;
 					case '5':
-						mkdir(path,
-					 (int)octToDec(header->mode));
+						extractDir(path, 
+						(int)octToDec(header->mode));
+						/*mkdir(path,
+					 (int)octToDec(header->mode));*/
 					default:
 						break;
 				}
 			}
+			if (verbosity && named)
+				fprintf(stdout, "%s\n", path);
+			/*else if(verbosity && !named)
+				fprintf(stdout, "FUCK: %s\n", path);*/
+
 		}
+		/*if(!isDis && argc > 3) {
+			named = isNamed(path, argc, argv, 
+					verbosity, header, false);
+			if (named && verbosity)
+				fprintf(stdout, "%s\n", path);
+			switch(type) {
+				case '0':
+					if (named)
+					curBlock = 
+					extractFile(fd, curBlock,
+					 header, path);
+					else
+					curBlock = skipFile(fd, curBlock, 
+						header, path);
+					break;
+				case '5':
+					if(named)
+					extractDir(path, 
+					(int)octToDec(header->mode));
+				default:
+					break;
+			}
+		}*/
 		/*check if next block is empty and therefore end of tarfile*/
 		lseek(fd, BLOCK * curBlock, SEEK_SET);
 		read(fd, &buffer, BLOCK);
