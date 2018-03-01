@@ -59,51 +59,65 @@ int isError(int argc, char *argv[])
 /**************************Helper******************************/
 
 void set_Check(struct THeader *header){
-		unsigned char runningTotal = 0;
+		unsigned int runningTotal = 0;
 		int x;
 
-		runningTotal = (unsigned char)320;
+		runningTotal = (unsigned int)256;
 		for(x = 0; x < strlen(header->name); x++){
-					runningTotal = runningTotal + header->name[x];
+					runningTotal = runningTotal 
+					+ header->name[x];
 		}
 		for(x = 0; x < strlen(header->mode); x++){
-					runningTotal = runningTotal + header->mode[x];
+					runningTotal = runningTotal
+					 + header->mode[x];
 		}
 		for(x = 0; x < strlen(header->uid); x++){
-					runningTotal = runningTotal + header->uid[x];
+					runningTotal = runningTotal 
+					+ header->uid[x];
 		}
 		for(x = 0; x < strlen(header->gid); x++){
-					runningTotal = runningTotal + header->gid[x];
+					runningTotal = runningTotal 
+					+ header->gid[x];
 		}
 		for(x = 0; x < strlen(header->size); x++){
-					runningTotal = runningTotal + header->size[x];
+					runningTotal = runningTotal 
+					+ header->size[x];
 		}
 		for(x = 0; x < strlen(header->mtime); x++){
-					runningTotal = runningTotal + header->mtime[x];
+					runningTotal = runningTotal 
+					+ header->mtime[x];
 		}
 		for(x = 0; x < strlen(header->linkname); x++){
-					runningTotal = runningTotal + header->linkname[x];
+					runningTotal = runningTotal 
+					+ header->linkname[x];
 		}
 		for(x = 0; x < strlen(header->magic); x++){
-					runningTotal = runningTotal + header->magic[x];
+					runningTotal = runningTotal 
+					+ header->magic[x];
 		}
 		for(x = 0; x < strlen(header->version); x++){
-					runningTotal = runningTotal + header->version[x];
+					runningTotal = runningTotal 
+					+ header->version[x];
 		}
 		for(x = 0; x < strlen(header->uname); x++){
-					runningTotal = runningTotal + header->uname[x];
+					runningTotal = runningTotal 
+					+ header->uname[x];
 		}
 		for(x = 0; x < strlen(header->gname); x++){
-					runningTotal = runningTotal + header->gname[x];
+					runningTotal = runningTotal 
+					+ header->gname[x];
 		}
 		for(x = 0; x < strlen(header->devmajor); x++){
-					runningTotal = runningTotal + header->devmajor[x];
+					runningTotal = runningTotal 
+					+ header->devmajor[x];
 		}
 		for(x = 0; x < strlen(header->devminor); x++){
-					runningTotal = runningTotal + header->devminor[x];
+					runningTotal = runningTotal 
+					+ header->devminor[x];
 		}
 		for(x = 0; x < strlen(header->prefix); x++){
-					runningTotal = runningTotal + header->prefix[x];
+					runningTotal = runningTotal 
+					+ header->prefix[x];
 		}
 		sprintf(header->chksum, "%o", runningTotal);
 }
@@ -1026,7 +1040,8 @@ void makeHeader(char *name, struct THeader *header)
         /*gets all the information from file*/
         /*make a DIR and a dirent and a stat*/
         struct stat sb;
-        /*int x = 0, MAX = 100, length = strlen(name), y = 0;*/
+        /*int x = 0, MAX = 100, 
+        length = strlen(name), y = 0;*/
 		/*bool found = false;*/
 		/*bool cat = false;*/
 		char prefix[300];
@@ -1046,7 +1061,8 @@ void makeHeader(char *name, struct THeader *header)
 		lstat(name, &sb);
 		/* Set the Name */
 		/* 
-		 * If we have something in the prefix, include it in the name.
+		 * If we have something in the prefix,
+		  include it in the name.
          * Max gets updated 
 		 */
 
@@ -1130,16 +1146,26 @@ void makeHeader(char *name, struct THeader *header)
 		TYPE FLAG - '0' Reg, '\0' Alt-Reg, '2' Sym, '5' direc 
 		TODO: MAKE SURE TO CHECK HOW
 		 TO HANDLE REGULAR ALTERNATE FILES */
-		if(S_ISLNK(sb.st_mode)){
-				header->typeflag = '2';
-				/*TODO Set SYMLINK Value here.*/
-		}
-		else if(S_ISDIR(sb.st_mode)){header->typeflag = '5';}
-		else if(S_ISREG(sb.st_mode)){header->typeflag = '0';}
+
+
+		/*sets chksum */
+		set_Check(header);
+		/*TYPE FLAG - '0' Reg, '2' Sym, '5' direc */
+		if(S_ISREG(sb.st_mode)){header->typeflag = '0';}
+		/*Possible TODO Set linkname here.*/
+		if(S_ISLNK(sb.st_mode)){header->typeflag = '2';}
+		if(S_ISDIR(sb.st_mode)){header->typeflag = '5';}
 		strcpy(header->magic, "ustar");
 		strcpy(header->version, "00");
-		strcpy(header->uname, getpwuid(sb.st_uid)->pw_name);
-		strcpy(header->gname, getgrgid(sb.st_gid)->gr_name);
+		/* POSSIBLE TODO: Check for OVERFLOW */
+		strcpy(header->uname, 
+			getpwuid(sb.st_uid)->pw_name);
+		strcpy(header->gname, 
+			getgrgid(sb.st_gid)->gr_name);
+		memset(&header->devmajor[0], 0, 
+			sizeof(header->devmajor));
+		memset(&header->devminor[0], 0, 
+			sizeof(header->devminor));
 		/*TODO DevMajor && DevMinor*/
 		
 		
@@ -1337,13 +1363,12 @@ int main(int argc, char *argv[])
 	bool strict = false;
 	int i;
 	int len;
+	struct stat sb;
 
 	char myDir[200];
 
 	for (i = 0; i < 200; i++)
-		myDir[i] = '\0';
-
-	strcpy(myDir, "Elle/");
+		myDir[i] = '\0';	
 
 
 	/*printf("__________________________________________\n");
@@ -1355,6 +1380,15 @@ int main(int argc, char *argv[])
 	if (isError(argc, argv)){
 		fprintf(stdout, "Not enough input\n");
 		return 0;
+	}
+
+
+	/*check if valid tar file*/
+	stat(argv[2], &sb);
+	if ((sb.st_size % BLOCK) != 0 ) {
+		fprintf(stderr, "Bad tar file\n");
+		exit(EXIT_FAILURE);
+
 	}
 
 	/*get command line arguments while still checking for errors*/
