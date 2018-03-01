@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <time.h>
 #include <assert.h>
+#include <pwd.h>
+#include <grp.h>
 
 #define MAXPATH 256
 #define BLOCK 512
@@ -25,21 +27,21 @@
 
 struct THeader 
 {
-	char name[100];
-	char mode[8];
-	char uid[8];
-	char gid[8];
-	char size[12];
-	char mtime[12];
-	char chksum[8];
+	char name[101];
+	char mode[9];
+	char uid[9];
+	char gid[9];
+	char size[13];
+	char mtime[13];
+	char chksum[9];
 	char typeflag;
-	char linkname[100];
-	char magic[6];
-	char version[2];
-	char uname[32];
-	char gname[32];
-	char devmajor[8];
-	char devminor[8];
+	char linkname[101];
+	char magic[7];
+	char version[3];
+	char uname[33];
+	char gname[33];
+	char devmajor[9];
+	char devminor[9];
 	char prefix[156];
 };
 
@@ -55,6 +57,60 @@ int isError(int argc, char *argv[])
 }
 
 /**************************Helper******************************/
+
+/*void set_Check(header){
+		unsigned char runningTotal = 0;
+		unsigned char *initialize = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+		int x;
+		runningTotal = runningTotal + header->typeflag[0];
+		for(x = 0; x < 8; x++){
+					runningTotal = runningTotal + initialize[x];
+		}
+		for(x = 0; x < strlen(header->name); x++){
+					runningTotal = runningTotal + header->name[x];
+		}
+		for(x = 0; x < strlen(header->mode; x++){
+					runningtotal = runningTotal + header->mode[x];
+		}
+		for(x = 0; x < strlen(header->uid; x++){
+					runningtotal = runningTotal + header->uid[x];
+		}
+		for(x = 0; x < strlen(header->gid; x++){
+					runningtotal = runningTotal + header->gid[x];
+		}
+		for(x = 0; x < strlen(header->size; x++){
+					runningtotal = runningTotal + header->size[x];
+		}
+		for(x = 0; x < strlen(header->mtime; x++){
+					runningtotal = runningTotal + header->mtime[x];
+		}
+		for(x = 0; x < strlen(header->linkname; x++){
+					runningtotal = runningTotal + header->linkname[x];
+		}
+		for(x = 0; x < strlen(header->magic; x++){
+					runningtotal = runningTotal + header->magic[x];
+		}
+		for(x = 0; x < strlen(header->version; x++){
+					runningtotal = runningTotal + header->version[x];
+		}
+		for(x = 0; x < strlen(header->uname; x++){
+					runningtotal = runningTotal + header->uname[x];
+		}
+		for(x = 0; x < strlen(header->gname; x++){
+					runningtotal = runningTotal + header->gname[x];
+		}
+		for(x = 0; x < strlen(header->devmajor; x++){
+					runningtotal = runningTotal + header->devmajor[x];
+		}
+		for(x = 0; x < strlen(header->devminor; x++){
+					runningtotal = runningTotal + header->devminor[x];
+		}
+		for(x = 0; x < strlen(header->prefix; x++){
+					runningtotal = runningTotal + header->prefix[x];
+		}
+		sprintf(header->chksum, "%o", runningtotal;
+}*/
+
 
 char** str_split(char* a_str, const char a_delim)
 {
@@ -223,6 +279,188 @@ void displayHeader(struct THeader *header)
 	/*printf("devmajor: 	%s\n", header->devmajor);
 	printf("devminor: 	%s\n", header->devminor);*/
 	printf("prefix: 	%s\n", header->prefix);
+}
+
+struct THeader *initHeader()
+{
+	struct THeader *header = malloc(sizeof(struct THeader));
+	int i;
+
+	for (i = 0; i < 100; i++) {
+		header->name[i] = '\0';
+	}
+	header->name[i] = '\0';
+
+	for (i = 0; i < 8; i++) {
+		header->mode[i] = '\0';
+	}
+	header->mode[i] = '\0';
+
+	for (i = 0; i < 8; i++) {
+		header->uid[i] = '\0';
+	}
+	header->uid[i] = '\0';
+
+	for (i = 0; i < 8; i++) {
+		header->gid[i] = '\0';
+	}
+	header->gid[i] = '\0';
+
+	for (i = 0; i < 12; i++) {
+		header->size[i] = '\0';
+	}
+	header->size[i] = '\0';
+
+	for (i = 0; i < 12; i++) {
+		header->mtime[i] = '\0';
+	}
+	header->mtime[i] = '\0';
+
+	for (i = 0; i < 8; i++) {
+		header->chksum[i] = '\0';
+	}
+	header->chksum[i] = '\0';
+
+	header->typeflag = '\0';
+
+	for (i = 0; i < 100; i++) {
+		header->linkname[i] = '\0';
+	}
+	header->linkname[i] = '\0';
+
+	for (i = 0; i < 6; i++) {
+		header->magic[i] = '\0';
+	}
+	header->magic[i] = '\0';
+
+	for (i = 0; i < 2; i++) {
+		header->version[i] = '\0';
+	}
+	header->version[i] = '\0';
+
+	for (i = 0; i < 32; i++) {
+		header->uname[i] = '\0';
+	}
+	header->uname[i] = '\0';
+
+	for (i = 0; i < 32; i++) {
+		header->gname[i] = '\0';
+	}
+	header->gname[i] = '\0';
+
+	for (i = 0; i < 8; i++) {
+		header->devmajor[i] = '\0';
+	}
+	header->devmajor[i] = '\0';
+	/*fprintf(stdout, "test: devminor is %d\n", (int) octToDec(buffer));*/
+
+	for (i = 0; i < 8; i++) {
+		header->devminor[i] = '\0';
+	}
+	header->devminor[i] = '\0';
+	/*fprintf(stdout, "test: devmajor is %s\n", header->devmajor);*/
+
+	for (i = 0; i < 155; i++) {
+		header->prefix[i] = '\0';
+	}
+	header->prefix[i] = '\0';
+
+	return header;
+
+}
+
+int writeHeader(struct THeader *header, int fd, int curBlock)
+{
+	char buffer[BLOCK];
+	int i;
+	int count = 0;
+
+	for (i = 0; i < BLOCK; i++) 
+		buffer[i] = '\0';
+
+	for (i = 0; i < 100; i++) {
+		buffer[count] = header->name[i];
+		count ++;
+	}
+
+	for (i = 0; i < 8; i++) {
+		buffer[count] = header->mode[i];
+		count ++;
+	}
+
+	for (i = 0; i < 8; i++) {
+		buffer[count] = header->uid[i];
+		count ++;
+	}
+
+	for (i = 0; i < 8; i++) {
+		buffer[count] = header->gid[i];
+		count ++;
+	}
+
+	for (i = 0; i < 12; i++) {
+		buffer[count] = header->size[i];
+		count ++;
+	}
+
+	for (i = 0; i < 12; i++) {
+		buffer[count] = header->mtime[i];
+		count ++;
+	}
+
+	for (i = 0; i < 8; i++) {
+		buffer[count] = header->chksum[i];
+		count ++;
+	}
+
+	buffer[count] = header->typeflag;
+	count ++;
+
+	for (i = 0; i < 100; i++) {
+		buffer[count] = header->linkname[i];
+		count ++;
+	}
+
+	for (i = 0; i < 6; i++) {
+		buffer[count] = header->magic[i];
+		count ++;
+	}
+
+	for (i = 0; i < 2; i++) {
+		buffer[count] = header->version[i];
+		count ++;
+	}
+
+	for (i = 0; i < 32; i++) {
+		buffer[count] = header->uname[i];
+		count ++;
+	}
+
+	for (i = 0; i < 32; i++) {
+		buffer[count] = header->gname[i];
+		count ++;
+	}
+
+	for (i = 0; i < 8; i++) {
+		buffer[count] = header->devmajor[i];
+		count ++;
+	}
+	/*fprintf(stdout, "test: devminor is %d\n", (int) octToDec(buffer));*/
+
+	for (i = 0; i < 8; i++) {
+		buffer[count] = header->devminor[i];
+		count ++;
+	}
+	/*fprintf(stdout, "test: devmajor is %s\n", header->devmajor);*/
+
+	for (i = 0; i < 155; i++) {
+		buffer[count] = header->prefix[i];
+		count ++;
+	}
+
+	write(fd, &buffer, BLOCK);
+	curBlock +=1;
+	return curBlock;
 }
 
 /*Takes curent block and structures it into a header*/
@@ -398,18 +636,15 @@ int extractFile(int fd, int curBlock,
 	int remainder;
 	int i;
 	int fSize;
-	char tempPath[BLOCK];
 
 	/*initialize buffer string*/
 	for (i = 0; i < BLOCK; i++) {
 		buffer[i] = ' ';
-		tempPath[i] = '\0';
 	}
 
 	/*create new file, exit if failure*/
 	outfd = open(path, O_WRONLY | O_CREAT, (int)octToDec(header->mode));
 	if (outfd == -1) {
-		strcpy(tempPath, path);
 		extractPath(path, (int)octToDec(header->mode));
 		outfd = open(path, O_WRONLY | O_CREAT,
 		 (int)octToDec(header->mode));
@@ -617,11 +852,9 @@ void travTar (int argc, char *argv[],
 	int hCount = 0;
 	bool named = false;
 
-	char tempPath[300];
-
-	for (i = 0; i < 300; i++) {
+	/*for (i = 0; i < 300; i++) {
 		tempPath[i] = '\0';
-	}
+	}*/
 	i = 0;
 
 	/*init string buffers*/
@@ -779,6 +1012,144 @@ void travTar (int argc, char *argv[],
 
 /**********************create***************************/
 
+/* Helper Function to clear the prefix */
+void clear_Prefix(struct THeader *header){
+        int x;
+        for(x = 0; x < strlen(header->prefix); x++){
+                header->prefix[x] = '\0';
+        }
+}
+
+/*TODO: Potential Edge case, file name over 200
+ characters that includes a /. */
+void makeHeader(char *name, struct THeader *header)
+{
+        /*open stat of name*/
+        /*get a stat and get information*/
+        /*gets all the information from file*/
+        /*make a DIR and a dirent and a stat*/
+        struct stat sb;
+        /*int x = 0, MAX = 100, length = strlen(name), y = 0;*/
+		/*bool found = false;*/
+		/*bool cat = false;*/
+		char prefix[300];
+		char cpName[300];
+		int countlen = 0;
+		int namelen;
+		int preflen;
+		int i;
+		char **tokens;
+
+		for (i = 0; i < 300; i++) {
+			prefix[i] = '\0';
+			cpName[i] = '\0';
+		}
+
+
+		lstat(name, &sb);
+		/* Set the Name */
+		/* 
+		 * If we have something in the prefix, include it in the name.
+         * Max gets updated 
+		 */
+
+		if (strlen(name) >= 100) {
+			tokens = str_split(name, '/');
+			i = 0;
+			countlen = strlen(*(tokens));
+			i ++;
+			while (*(tokens + i)) {
+				countlen += strlen(*(tokens + i));
+				if (countlen >= 100) {
+					namelen = i - 1;
+				}
+				i++;
+			}
+			preflen = i - namelen;
+			for (i = 0; i < preflen; i++) {
+				strcat(prefix, *(tokens + i));
+				strcat(prefix, "/");
+				free(*(tokens + i));
+			}
+			for(i = preflen; i < preflen + namelen - 1; i++) {
+				strcat(cpName, *(tokens + i));
+				strcat(cpName, "/");
+				free(*(tokens + i));
+			}
+			strcat(cpName, *(tokens + i));
+			strcpy(header->name, cpName);
+			strcpy(header->prefix, prefix);
+			free (tokens);
+
+		}
+		else {
+			strcpy(header->name, name);
+		}
+
+		printf("NAME: %s\n", header->name);
+		printf("PREFIX: %s\n", header->prefix);
+        /*if(strlen(header->prefix) > 0){
+                strcpy(header->name, 
+                	header->prefix);
+                printf("NAME:");
+                MAX = MAX - length;
+				clear_Prefix(header);
+				cat = true;
+        }
+		length--;
+		while(x != MAX){
+				if(name[length] == '/'){
+						strncpy(header->prefix,
+							name, length);
+						name = name + length;
+						found = true;
+						break;
+				}
+				x++;
+				length--;
+			}
+		if(found){strcpy(header->name, name);}
+		else{
+			if(strlen(name) > MAX){
+				fprintf(stderr, 
+					"File %s is too large! Skipping...\n", 
+					name);
+			}
+			else{strcpy(header->name, name);}
+		}*/
+		
+		/*MODE, UID, GID, SIZE, MTIME, */
+		sprintf(header->mode, "%07o", (int)sb.st_mode);
+		sprintf(header->uid, "%7o", (int)sb.st_uid);
+		sprintf(header->gid, "%7o", (int)sb.st_gid);
+		sprintf(header->size, "%011o", (int)sb.st_size);
+		sprintf(header->mtime, "%11o", (int)sb.st_mtime);
+		printf("MODE: %s\n", header->mode);
+		printf("uid:  %s\n", header->uid);
+		printf("GID:  %s\n", header->gid);
+		printf("SIZE: %s\n", header->size);
+		printf("MTIME:%s\n", header->mtime);
+		/*TODO: CHKSUM
+		TYPE FLAG - '0' Reg, '\0' Alt-Reg, '2' Sym, '5' direc 
+		TODO: MAKE SURE TO CHECK HOW
+		 TO HANDLE REGULAR ALTERNATE FILES */
+		if(S_ISLNK(sb.st_mode)){
+				header->typeflag = '2';
+				/*TODO Set SYMLINK Value here.*/
+		}
+		else if(S_ISDIR(sb.st_mode)){header->typeflag = '5';}
+		else if(S_ISREG(sb.st_mode)){header->typeflag = '0';}
+		strcpy(header->magic, "ustar");
+		strcpy(header->version, "00");
+		strcpy(header->uname, getpwuid(sb.st_uid)->pw_name);
+		strcpy(header->gname, getgrgid(sb.st_gid)->gr_name);
+		/*TODO DevMajor && DevMinor*/
+		
+		
+		
+		
+}
+
 int putFile(int tarfd, int curBlock, struct stat *sb, char *name)
 {
 	int fd;
@@ -787,6 +1158,7 @@ int putFile(int tarfd, int curBlock, struct stat *sb, char *name)
 	int remainder;
 	int i;
 	int fSize;
+	struct THeader *header = initHeader();
 
 	/*initialize buffer string*/
 	for (i = 0; i < BLOCK; i++) {
@@ -794,8 +1166,12 @@ int putFile(int tarfd, int curBlock, struct stat *sb, char *name)
 	}
 
 	/*write blank header*/
-	lseek(tarfd, BLOCK * curBlock, SEEK_SET);
-	curBlock += 1;
+	makeHeader(name, header);
+	curBlock = writeHeader(header, tarfd, curBlock);
+	lseek(tarfd, BLOCK * curBlock, SEEK_SET	);
+	free(header);
+	
+
 
 	/*open file TODO: figure out how to handle a -1 error*/
 	fd = open(name, O_RDONLY);
@@ -831,6 +1207,8 @@ int putDir(int tarfd, int curBlock, char *name)
 	struct dirent *dp;
 	struct stat sb;
 	char path[103];
+	struct THeader *header = initHeader();
+
 
 	/*initialize buffer string*/
 	/* for (i = 0; i < BLOCK; i++) {
@@ -843,8 +1221,13 @@ int putDir(int tarfd, int curBlock, char *name)
 	}
 
 	/*insert header for directory*/
-	lseek(tarfd, BLOCK * curBlock, SEEK_SET);
-	curBlock += 1;
+	/*lseek(tarfd, BLOCK * curBlock, SEEK_SET);
+	curBlock += 1;*/
+	/*write blank header*/
+	makeHeader(name, header);
+	curBlock = writeHeader(header, tarfd, curBlock);
+	lseek(tarfd, BLOCK * curBlock, SEEK_SET	);
+	free(header);
 
 	while((dp = readdir(dir)) != NULL) {
 		/*ignore current and parent directories*/
@@ -897,7 +1280,7 @@ is currently very confusing*/
 aren't in affect right now*/
 void makeTar(int argc, char *argv[], bool verbosity, bool strict)
 {
-
+	printf("MADE IT TO MAKETAR\n");
 	int tarfd = open(argv[2], 
 		O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	/*char buffer[BLOCK];*/
@@ -908,17 +1291,24 @@ void makeTar(int argc, char *argv[], bool verbosity, bool strict)
 	/*loop through each given file*/
 	for (i = 3; i < argc; i++) {
 
+		printf("...handling %s\n", argv[i]);
+
 		/*get status of given file/directory*/
-		if(stat(argv[i], &sb) == -1)
+		if(stat(argv[i], &sb) == -1) {
+			printf("stat broke\n");
+			printf("name is: %s", argv[i]);
 			break;
+		}
 
 		/*if file, print file to tar*/
 		if (S_ISREG(sb.st_mode)){
+			printf("isregfile... going to putfile\n");
 			curBlock = putFile(tarfd, curBlock, &sb, argv[i]);
 		}
 
 		/*if directory, print write directory to tar file*/
 		else if (S_ISDIR(sb.st_mode)) {
+			printf("isDir... going to putdir\n");
 			curBlock = putDir(tarfd, curBlock, argv[i]);
 		}
 
