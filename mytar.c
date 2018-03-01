@@ -346,18 +346,33 @@ void extractPath(char *path, int mode)
 	if(!tokens)
 		return;
 
+	strcpy(path, *(tokens + i));
+	strcat(path, "/");
+	dir = opendir(path);
+	if (!dir)
+		mkdir(path, S_IRUSR | S_IWUSR |
+				S_IXUSR);
+	closedir(dir);
+	free(*(tokens + i));
+	i ++;
+
 	do {
 		strcat(path, *(tokens + i));
+		strcat(path, "/");
 		dir = opendir(path);
-		/*if (!dir)
+		if (!dir)
 			mkdir(path, S_IRUSR | S_IWUSR |
-				S_IXUSR);*/
+				S_IXUSR);
 		printf("[%s]", *(tokens + i));
+		closedir(dir);
+		free(*(tokens + i));
 		i++;
 	} while(*(tokens + i + 1));
 
 	printf("file: [%s]\n", *(tokens + i));
 	printf("path: %s\n", path);
+	strcat(path, *(tokens + i));
+	free(*(tokens + i));
 
 	free(tokens);
 
@@ -383,17 +398,28 @@ int extractFile(int fd, int curBlock,
 	int remainder;
 	int i;
 	int fSize;
+	char tempPath[BLOCK];
 
+	printf("1\n");
 	/*initialize buffer string*/
 	for (i = 0; i < BLOCK; i++) {
 		buffer[i] = ' ';
+		tempPath[i] = '\0';
 	}
 
 	/*create new file, exit if failure*/
 	outfd = open(path, O_WRONLY | O_CREAT, (int)octToDec(header->mode));
-	if (outfd == -1)
-		exit(EXIT_FAILURE);
-
+	if (outfd == -1) {
+		strcpy(tempPath, path);
+		extractPath(path, (int)octToDec(header->mode));
+		outfd = open(path, O_WRONLY | O_CREAT,
+		 (int)octToDec(header->mode));
+		if (outfd == -1) {
+			printf("COULDN'T OPEN FILE");
+			exit(EXIT_FAILURE);
+		}
+	}
+	printf("2\n");
 	/*copy file into outfd (keeping track of blocks traversed)*/
 	fSize = (int) octToDec(header->size);
 	loop = (int) fSize/ BLOCK;
@@ -404,7 +430,7 @@ int extractFile(int fd, int curBlock,
 		write(outfd, &buffer, BLOCK);
 		curBlock += 1;
 	}
-
+	printf("3\n");
 	/*write the non null characters in last block*/
 	read(fd, &buffer, remainder);  
 	write(outfd, &buffer, remainder);
@@ -596,8 +622,9 @@ void travTar (int argc, char *argv[],
 
 	char tempPath[300];
 
-	for (i = 0; i < 300; i++)
+	for (i = 0; i < 300; i++) {
 		tempPath[i] = '\0';
+	}
 	i = 0;
 
 	/*init string buffers*/
@@ -688,14 +715,17 @@ void travTar (int argc, char *argv[],
 				}
 			}
 			else {
+				printf("NAMED:::::::\n");
 				switch(type) {
 					case '0':
-						strcpy(tempPath, path);
-						extractPath(tempPath,
-						(int)octToDec(header->mode));
+						/*strcpy(tempPath, path);*/
+						/*extractPath(tempPath,
+						(int)octToDec(header->mode));*/
+						printf("start\n");
 						curBlock = 
 						extractFile(fd, curBlock,
 						 header, path);
+						printf("finish\n");
 						break;
 					case '5':
 						extractDir(path, 
@@ -708,8 +738,8 @@ void travTar (int argc, char *argv[],
 			}
 			if (verbosity && named)
 				fprintf(stdout, "%s\n", path);
-			/*else if(verbosity && !named)
-				fprintf(stdout, "FUCK: %s\n", path);*/
+			else if(verbosity && !named)
+				fprintf(stdout, "FUCK: %s\n", path);
 
 		}
 		/*if(!isDis && argc > 3) {
