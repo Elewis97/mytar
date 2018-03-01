@@ -58,58 +58,55 @@ int isError(int argc, char *argv[])
 
 /**************************Helper******************************/
 
-/*void set_Check(header){
+void set_Check(struct THeader *header){
 		unsigned char runningTotal = 0;
-		unsigned char *initialize = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 		int x;
-		runningTotal = runningTotal + header->typeflag[0];
-		for(x = 0; x < 8; x++){
-					runningTotal = runningTotal + initialize[x];
-		}
+
+		runningTotal = (unsigned char)320;
 		for(x = 0; x < strlen(header->name); x++){
 					runningTotal = runningTotal + header->name[x];
 		}
-		for(x = 0; x < strlen(header->mode; x++){
-					runningtotal = runningTotal + header->mode[x];
+		for(x = 0; x < strlen(header->mode); x++){
+					runningTotal = runningTotal + header->mode[x];
 		}
-		for(x = 0; x < strlen(header->uid; x++){
-					runningtotal = runningTotal + header->uid[x];
+		for(x = 0; x < strlen(header->uid); x++){
+					runningTotal = runningTotal + header->uid[x];
 		}
-		for(x = 0; x < strlen(header->gid; x++){
-					runningtotal = runningTotal + header->gid[x];
+		for(x = 0; x < strlen(header->gid); x++){
+					runningTotal = runningTotal + header->gid[x];
 		}
-		for(x = 0; x < strlen(header->size; x++){
-					runningtotal = runningTotal + header->size[x];
+		for(x = 0; x < strlen(header->size); x++){
+					runningTotal = runningTotal + header->size[x];
 		}
-		for(x = 0; x < strlen(header->mtime; x++){
-					runningtotal = runningTotal + header->mtime[x];
+		for(x = 0; x < strlen(header->mtime); x++){
+					runningTotal = runningTotal + header->mtime[x];
 		}
-		for(x = 0; x < strlen(header->linkname; x++){
-					runningtotal = runningTotal + header->linkname[x];
+		for(x = 0; x < strlen(header->linkname); x++){
+					runningTotal = runningTotal + header->linkname[x];
 		}
-		for(x = 0; x < strlen(header->magic; x++){
-					runningtotal = runningTotal + header->magic[x];
+		for(x = 0; x < strlen(header->magic); x++){
+					runningTotal = runningTotal + header->magic[x];
 		}
-		for(x = 0; x < strlen(header->version; x++){
-					runningtotal = runningTotal + header->version[x];
+		for(x = 0; x < strlen(header->version); x++){
+					runningTotal = runningTotal + header->version[x];
 		}
-		for(x = 0; x < strlen(header->uname; x++){
-					runningtotal = runningTotal + header->uname[x];
+		for(x = 0; x < strlen(header->uname); x++){
+					runningTotal = runningTotal + header->uname[x];
 		}
-		for(x = 0; x < strlen(header->gname; x++){
-					runningtotal = runningTotal + header->gname[x];
+		for(x = 0; x < strlen(header->gname); x++){
+					runningTotal = runningTotal + header->gname[x];
 		}
-		for(x = 0; x < strlen(header->devmajor; x++){
-					runningtotal = runningTotal + header->devmajor[x];
+		for(x = 0; x < strlen(header->devmajor); x++){
+					runningTotal = runningTotal + header->devmajor[x];
 		}
-		for(x = 0; x < strlen(header->devminor; x++){
-					runningtotal = runningTotal + header->devminor[x];
+		for(x = 0; x < strlen(header->devminor); x++){
+					runningTotal = runningTotal + header->devminor[x];
 		}
-		for(x = 0; x < strlen(header->prefix; x++){
-					runningtotal = runningTotal + header->prefix[x];
+		for(x = 0; x < strlen(header->prefix); x++){
+					runningTotal = runningTotal + header->prefix[x];
 		}
-		sprintf(header->chksum, "%o", runningtotal;
-}*/
+		sprintf(header->chksum, "%o", runningTotal);
+}
 
 
 char** str_split(char* a_str, const char a_delim)
